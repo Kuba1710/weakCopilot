@@ -163,6 +163,16 @@ def load_tokens(filename):
     tokens = torch.tensor(tokens)
     return tokens
 
+def checkFileLenght(filename):
+    with open(filename, 'r') as f:
+        text = f.read()
+    elements = torch.tensor(text)
+    print(elements.size())
+    if elements.size() > 8192:
+        return True
+    else:
+        return False
+
 
 class DataLoaderLite:
     def __init__(self, B, T, split):
@@ -178,13 +188,19 @@ class DataLoaderLite:
         shards = []
         for root, _, files in os.walk(data_root):
             for file in files:
-                shards.append(os.path.join(root, file))
+                if checkFileLenght(file):
+                    print('file added')
+                    shards.append(os.path.join(root, file))
         shards = sorted(shards)
         self.shards = shards
         assert len(shards) > 0, f"no shards found for split {split}"
         print(f"found {len(shards)} shards for split {split}")
         self.current_position = 0
-        self.current_shard = 0
+        self.current_shard = 10
+        self.tokens = load_tokens(self.shards[self.current_shard])
+        print(self.shards[self.current_shard])
+        print('amount of tokens')
+        print(self.tokens.size())
         #self.reset()
 
     #def reset(self):
@@ -202,6 +218,7 @@ class DataLoaderLite:
         B, T = self.B, self.T
         print('printing tokens in next_batch')
         print(self.tokens)
+        print(self.tokens.size())
         buf = self.tokens[self.current_position : self.current_position+B*T+1]
         print(buf)
         x = (buf[:-1]).view(B, T) # inputs
@@ -224,7 +241,7 @@ B = 8
 T = 1024
 assert total_batch_size % (B * T) ==0, "make sure total_batch_size is divisible by B * T"
 grad_accum_steps = total_batch_size // (B * T)
-print(f"total desired batcj size: {total_batch_size}")
+print(f"total desired batch size: {total_batch_size}")
 print(f"=> calculated gradient accumulation steps: {grad_accum_steps}")
 
 model = GPT(GPTConfig(vocab_size=50304))
