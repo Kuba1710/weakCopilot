@@ -161,14 +161,17 @@ def load_tokens(filename):
     enc = tiktoken.get_encoding('gpt2')
     tokens = enc.encode(text)
     tokens = torch.tensor(tokens)
+    print(tokens)
     return tokens
 
 def checkFileLenght(filename):
     with open(filename, 'r') as f:
         text = f.read()
-    elements = torch.tensor(text)
-    print(elements.size())
-    if elements.size() > 8192:
+    enc = tiktoken.get_encoding('gpt2')
+    tokens = enc.encode(text)
+    elements = torch.tensor(tokens)
+    elementsSize = list(elements.size())
+    if elementsSize[0] > 8192: #ugly shit
         return True
     else:
         return False
@@ -188,15 +191,14 @@ class DataLoaderLite:
         shards = []
         for root, _, files in os.walk(data_root):
             for file in files:
-                if checkFileLenght(file):
-                    print('file added')
+                if checkFileLenght(os.path.join(root, file)):
                     shards.append(os.path.join(root, file))
         shards = sorted(shards)
         self.shards = shards
         assert len(shards) > 0, f"no shards found for split {split}"
         print(f"found {len(shards)} shards for split {split}")
         self.current_position = 0
-        self.current_shard = 10
+        self.current_shard = 0
         self.tokens = load_tokens(self.shards[self.current_shard])
         print(self.shards[self.current_shard])
         print('amount of tokens')
@@ -217,18 +219,23 @@ class DataLoaderLite:
     def next_batch(self):
         B, T = self.B, self.T
         print('printing tokens in next_batch')
-        print(self.tokens)
         print(self.tokens.size())
+        print(self.current_position)
+        print(self.current_shard)
         buf = self.tokens[self.current_position : self.current_position+B*T+1]
+        print('printing buf')
         print(buf)
+        print(buf.size())
         x = (buf[:-1]).view(B, T) # inputs
         y = (buf[1:]).view(B, T) # targets
         # advance the position in the tensor
         self.current_position += B * T
         # if loading the next batch would be out of bounds, advance to next shard
         if self.current_position + (B * T + 1) > len(self.tokens):
+            print('changing shards')
             self.current_shard = (self.current_shard + 1) % len(self.shards)
             self.tokens = load_tokens(self.shards[self.current_shard])
+            self.current_position = 0
         return x, y
 
 
