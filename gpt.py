@@ -164,19 +164,6 @@ def load_tokens(filename):
     print(tokens)
     return tokens
 
-def checkFileLenght(filename):
-    with open(filename, 'r') as f:
-        text = f.read()
-    enc = tiktoken.get_encoding('gpt2')
-    tokens = enc.encode(text)
-    elements = torch.tensor(tokens)
-    elementsSize = list(elements.size())
-    if elementsSize[0] > 8192: #ugly shit
-        return True
-    else:
-        return False
-
-
 class DataLoaderLite:
     def __init__(self, B, T, split):
         self.B = B
@@ -185,14 +172,13 @@ class DataLoaderLite:
 
         # get the shard filenames
         if(split == "train"):
-            data_root = "cpp_c_files/train"
+            data_root = "files/train"
         else:
-            data_root = "cpp_c_files/validation"
+            data_root = "files/validation"
         shards = []
         for root, _, files in os.walk(data_root):
             for file in files:
-                if checkFileLenght(os.path.join(root, file)):
-                    shards.append(os.path.join(root, file))
+                shards.append(os.path.join(root, file))
         shards = sorted(shards)
         self.shards = shards
         assert len(shards) > 0, f"no shards found for split {split}"
