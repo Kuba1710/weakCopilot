@@ -161,7 +161,6 @@ def load_tokens(filename):
     enc = tiktoken.get_encoding('gpt2')
     tokens = enc.encode(text)
     tokens = torch.tensor(tokens)
-    print(tokens)
     return tokens
 
 class DataLoaderLite:
@@ -182,43 +181,19 @@ class DataLoaderLite:
         shards = sorted(shards)
         self.shards = shards
         assert len(shards) > 0, f"no shards found for split {split}"
-        print(f"found {len(shards)} shards for split {split}")
         self.current_position = 0
         self.current_shard = 0
         self.tokens = load_tokens(self.shards[self.current_shard])
-        print(self.shards[self.current_shard])
-        print('amount of tokens')
-        print(self.tokens.size())
-        #self.reset()
-
-    #def reset(self):
-    #    # state, init at shard zero
-    #    self.current_shard = 0
-    #    print('loading first file')
-    #    print(self.shards[self.current_shard])
-    #    self.tokens = load_tokens(self.shards[self.current_shard])
-    #    print('printing tokens')
-    #    print(len(self.tokens))
-    #    print(self.tokens)
-    #    self.current_position = self.B * self.T
     
     def next_batch(self):
         B, T = self.B, self.T
-        print('printing tokens in next_batch')
-        print(self.tokens.size())
-        print(self.current_position)
-        print(self.current_shard)
         buf = self.tokens[self.current_position : self.current_position+B*T+1]
-        print('printing buf')
-        print(buf)
-        print(buf.size())
         x = (buf[:-1]).view(B, T) # inputs
         y = (buf[1:]).view(B, T) # targets
         # advance the position in the tensor
         self.current_position += B * T
         # if loading the next batch would be out of bounds, advance to next shard
         if self.current_position + (B * T + 1) > len(self.tokens):
-            print('changing shards')
             self.current_shard = (self.current_shard + 1) % len(self.shards)
             self.tokens = load_tokens(self.shards[self.current_shard])
             self.current_position = 0
@@ -265,19 +240,12 @@ def get_lr(it):
 #optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, betas=(0.9, 0.95), eps=1e-8)
 optimizer = model.configure_optimizers(weight_decay=0.1, learning_rate=6e-4, device_type=device)
 
-log_dir = "log"
-os.makedirs(log_dir, exist_ok=True)
-log_file = os.path.join(log_dir, f"log.txt")
-with open(log_file, "w") as f: # open for writing to clear the file
-    pass
-
-for step in range(1):
+for step in range(19073):
     t0 = time.time()
     last_step = (step == max_steps - 1)
 
     if step % 100 == 0 or last_step:
         model.eval()
-        #val_loader.reset()
         with torch.no_grad():
             val_loss_accum = 0.0
             val_loss_steps = 20
@@ -295,7 +263,7 @@ for step in range(1):
         model.eval()
         num_return_sequences = 4
         max_length = 32
-        tokens = enc.encode("Hello, I'm a language model,")
+        tokens = enc.encode("void func()")
         tokens = torch.tensor(tokens, dtype=torch.long)
         tokens = tokens.unsqueeze(0).repeat(num_return_sequences, 1)
         xgen = tokens.to(device)
