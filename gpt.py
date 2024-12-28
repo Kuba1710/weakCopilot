@@ -237,10 +237,9 @@ def get_lr(it):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff starts at 1 and goes to 0
     return min_lr + coeff * (max_lr - min_lr)
 
-#optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, betas=(0.9, 0.95), eps=1e-8)
 optimizer = model.configure_optimizers(weight_decay=0.1, learning_rate=6e-4, device_type=device)
 
-for step in range(19073):
+for step in range(2000):
     t0 = time.time()
     last_step = (step == max_steps - 1)
 
@@ -262,7 +261,7 @@ for step in range(19073):
     if (step > 0 and step % 100 == 0):
         model.eval()
         num_return_sequences = 4
-        max_length = 32
+        max_length = 64
         tokens = enc.encode("void func()")
         tokens = torch.tensor(tokens, dtype=torch.long)
         tokens = tokens.unsqueeze(0).repeat(num_return_sequences, 1)
@@ -322,6 +321,10 @@ for step in range(19073):
     tokens_processed = train_loader.B * train_loader.T * grad_accum_steps
     tokens_per_sec = (train_loader.B * train_loader.T) / dt
     print(f"step {step} loss: {loss_accum.item()} | dt: {dt:.2f}ms toks/sec {tokens_per_sec:.2f} | norm: {norm:.4f} | lr: {lr:.4e}")
+
+model_save_path = "model.pth"
+torch.save(model.state_dict(), model_save_path)
+print(f"Model state dictionary saved to {model_save_path}")
 
 import sys; sys.exit(0)
 
